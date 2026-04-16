@@ -689,7 +689,15 @@ async def _run_resolve(
     if repo_or_none is None:
         return 1
     repo: Repo = repo_or_none
-    before_hashes = compute_hashes(repo, project_root, repo.git.ls_files().splitlines())
+    # Only hash files that actually carry open findings — these are the
+    # paths ``_update_resolved_hashes`` will look up via
+    # ``before_hashes.get()``.  Files the agent dirties as a side effect
+    # of a fix aren't in this set, but ``.get()`` returning ``None`` still
+    # correctly marks them as changed.  Scales O(len(open_findings))
+    # instead of O(tracked files in repo), which matters on large repos;
+    # behavior-equivalent for the small ones we currently target.
+    candidate_files = sorted({f.file for f in open_findings if f.file})
+    before_hashes = compute_hashes(repo, project_root, candidate_files)
     file_status = load_file_status(sqa_dir)
 
     def on_resolved(finding: Finding) -> None:
