@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.markup import escape
+from rich.prompt import Confirm
 from rich.syntax import Syntax
 
 if TYPE_CHECKING:
@@ -81,10 +82,19 @@ def stage_and_commit(console: Console, message: str) -> None:
     would be surprising.  Keep the scope policies in sync with each
     other when touching either site.
 
-    Shows ``git status --short`` of the staged set before committing so
-    the user can see exactly what is about to land — matches
-    ``cmd_commit``'s visibility without adding a confirmation prompt
-    (the slash-command's value is one-keystroke speed).
+    Shows ``git diff --name-status --staged`` of the staged set and
+    prompts for explicit y/n confirmation before committing.  The
+    confirmation is a security gate: ``git add .`` stages untracked
+    files too (a deliberate choice, see above), which means a stray
+    ``.env`` or private key could otherwise ride along into the commit
+    (and, if the user pushes, become an irreversible credential leak).
+    Matching ``cmd_commit``'s confirm step closes that gap; the extra
+    keystroke is cheap compared to the worst-case outcome.
+
+    On abort, the partial ``git add .`` is rolled back with
+    ``git reset`` so the working tree is left in the state the caller
+    entered with — otherwise declining here would silently stage every
+    untracked file for the next commit.
     """
     from git import GitCommandError
 
@@ -105,6 +115,21 @@ def stage_and_commit(console: Console, message: str) -> None:
         # ``markup=False`` so filenames containing Rich markup syntax are
         # displayed literally and can't spoof the status output.
         console.print(staged, markup=False)
+        # Security gate: default=True keeps the common case a single
+        # keystroke (``Enter`` to accept), but an attentive user who
+        # spots a secret file in the list above can abort with ``n``.
+        # Ctrl-C / EOF at the prompt is treated as abort too.
+        try:
+            proceed = Confirm.ask("Commit these files?", default=True, console=console)
+        except (EOFError, KeyboardInterrupt):
+            proceed = False
+        if not proceed:
+            # Roll back the earlier ``git add .`` so declining here
+            # doesn't leave the working tree with every untracked file
+            # silently staged for the next commit.
+            repo.git.reset()
+            console.print("[dim]  Commit aborted.  Staging rolled back.[/dim]")
+            return
         repo.index.commit(message)
     except GitCommandError as exc:
         console.print(f"[red]  Commit failed:[/red] {escape(str(exc))}")
