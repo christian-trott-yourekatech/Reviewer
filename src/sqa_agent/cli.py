@@ -324,7 +324,15 @@ def cmd_reset() -> int:
 
 
 def cmd_commit() -> int:
-    """Stage and commit all current changes to the current branch."""
+    """Stage and commit all current changes to the current branch.
+
+    Scope is ``git add -u`` (tracked files only) — the conservative
+    counterpart to :func:`sqa_agent.git_ops.stage_and_commit`, which
+    backs the ``/commit`` slash-command inside interactive-resolve and
+    uses ``git add .`` so agent-created files get captured.  The two
+    policies are deliberately different; see ``stage_and_commit``'s
+    docstring for why.  Keep them in sync when touching either site.
+    """
     repo = _find_repo_or_log(Path.cwd())
     if repo is None:
         return 1

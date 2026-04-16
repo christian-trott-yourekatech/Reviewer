@@ -69,11 +69,22 @@ def show_diff(console: Console) -> None:
 def stage_and_commit(console: Console, message: str) -> None:
     """Stage all changes (``git add .``) and commit with *message*.
 
-    Mirrors the legacy "stage everything" behaviour of the interactive
-    ``/commit`` slash-command — *not* the tracked-only ``-u`` policy
-    used by :func:`sqa_agent.cli.cmd_commit` /
-    :func:`sqa_agent.cli._commit_resolve_changes`; interactive-resolve
-    commits are expected to include files the agent just created.
+    The "stage everything" scope is deliberate and differs from
+    :func:`sqa_agent.cli.cmd_commit` / :func:`sqa_agent.cli._commit_resolve_changes`,
+    which both use tracked-only ``git add -u``.  Interactive-resolve
+    sessions routinely produce new files (a helper module the agent
+    extracted, a new test the agent wrote) and the ``/commit`` slash
+    is shaped for a one-keystroke "capture what just happened" flow —
+    tracked-only would silently drop those new files and break the
+    ergonomics.  ``cmd_commit`` is the conservative counterpart for
+    ad-hoc manual commits where sweeping in untracked scratch files
+    would be surprising.  Keep the scope policies in sync with each
+    other when touching either site.
+
+    Shows ``git status --short`` of the staged set before committing so
+    the user can see exactly what is about to land — matches
+    ``cmd_commit``'s visibility without adding a confirmation prompt
+    (the slash-command's value is one-keystroke speed).
     """
     from git import GitCommandError
 
@@ -82,6 +93,18 @@ def stage_and_commit(console: Console, message: str) -> None:
         return
     try:
         repo.git.add(".")
+        # Show the staged set before committing.  ``diff --name-status
+        # --staged`` — same command cmd_commit uses — lists exactly the
+        # files going into the commit (no unstaged edits, no untracked
+        # leftovers).
+        staged = repo.git.diff("--name-status", "--staged").strip()
+        if not staged:
+            console.print("[dim]  Nothing staged — nothing to commit.[/dim]")
+            return
+        console.print("\n[bold]Staged for commit:[/bold]")
+        # ``markup=False`` so filenames containing Rich markup syntax are
+        # displayed literally and can't spoof the status output.
+        console.print(staged, markup=False)
         repo.index.commit(message)
     except GitCommandError as exc:
         console.print(f"[red]  Commit failed:[/red] {escape(str(exc))}")
