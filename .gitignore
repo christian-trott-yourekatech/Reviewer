@@ -1,0 +1,29 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# macOS
+.DS_Store
+
+# local env files
+.env
+.env.*
+!.env.example
+.env*.local
+
+# IDE
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+*.py[cod]
+*$py.class
+
+# Claude Code
+.claude/*.local.*
+
+# SQA Agent
+.sqa-agent/logs/
+.sqa-agent/result*.json
+.sqa-agent/debug.log

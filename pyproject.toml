@@ -1,0 +1,40 @@
+[project]
+name = "sqa-agent"
+version = "0.1.0"
+description = "AI-powered software quality assurance agent."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "claude-agent-sdk>=0.1.60",
+    "gitpython>=3.1.46",
+    "prompt-toolkit>=3.0.0",
+    "pydantic>=2.12.5",
+    "rich>=13.0.0",
+]
+
+# These are user-facing extras, not dev-only tools. Users install these
+# (e.g., `pip install sqa-agent[ruff]`) so the agent can invoke them during
+# code review. Do not move to [dependency-groups].
+[project.optional-dependencies]
+mypy = ["mypy>=1.19.1"]
+pyrefly = ["pyrefly>=0.52.0"]
+pytest = ["pytest>=9.0.2"]
+ruff = ["ruff>=0.15.0"]
+python = ["sqa-agent[mypy,pyrefly,pytest,ruff]"]
+all = ["sqa-agent[python]"]
+
+[project.scripts]
+sqa-agent = "sqa_agent.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/christian-trott-yourekatech/Reviewer"
+Repository = "https://github.com/christian-trott-yourekatech/Reviewer"
+Issues = "https://github.com/christian-trott-yourekatech/Reviewer/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sqa_agent"]

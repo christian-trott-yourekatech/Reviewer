@@ -1,0 +1,23 @@
+{
+  "src/sqa_agent/__init__.py": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+  "src/sqa_agent/agent.py": "74d7d92c15db795ffeec2d14b2fa60844c24f837",
+  "src/sqa_agent/agent_resolve.py": "bc6ea40676bf62fd48ae4d54f556702e39a1c272",
+  "src/sqa_agent/agent_common.py": "5f2d08b9b113a00c8297f884703cd6c0b2dbfff2",
+  "src/sqa_agent/agent_review.py": "16c43f78f63b18c4911665f1c1901820e1e891e2",
+  "src/sqa_agent/cli.py": "21270e3a64d3ef1246c16fe841043e137ed649db",
+  "src/sqa_agent/config.py": "0dae3072108f7c57db8715d096078d0279eb1ba4",
+  "src/sqa_agent/findings.py": "33150254925a1f68e3e14d43d30838cf6772b737",
+  "src/sqa_agent/file_status.py": "f8e5a4af612f4c3eb04aa036784d216af5fd2683",
+  "src/sqa_agent/prompts.py": "f579e8b91ffad9b65c6c6ffea6bc91212ce0bbb1",
+  "src/sqa_agent/tools.py": "fcee274e5cb0e3386dc04b2946e72a8c29d2e1c6",
+  "src/sqa_agent/ui.py": "b4cb68d22ad9b076e5b70f2ca4f716e720d1eba4",
+  ".gitignore": "243af54f71f7fc9404af330ca13b44026dff7bb3",
+  ".sqa-agent/file_status.json": "4b809478808783380a858e99242f7d921fd8f470",
+  ".sqa-agent/config.toml": "f446881951f1183a26849b8a3dba7cd438a5623b",
+  "tests/test_resolve.py": "ffe5187381af12dc654bd5120dec724943fe5393",
+  "tests/test_cli.py": "73670bfd511d54e6b474be7825b1830c104e98a0",
+  "tests/test_ui.py": "f5557c8d8fdc8af9da1b9cbdd3f6f57863056d48",
+  "README.md": "578a002675ba849fc219c23ce38b2a9113c60584",
+  "tests/test_agent.py": "ea711a55bf35fe52c4029c2c7cb83563e168f5cc",
+  "tests/test_config.py": "b458f0de941b3cf619db1bdf76cfb39e96593339"
+}

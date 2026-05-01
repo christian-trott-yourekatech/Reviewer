@@ -1,0 +1,44 @@
+# SQA Agent configuration
+# This file controls how the SQA agent analyzes your project.
+
+# Files in scope for review (glob patterns).
+[files]
+include = ["src/**/*.py"]
+exclude = ["tests/**/*"]
+
+# Tool configuration per file type, keyed by extension.
+# Each tool has a 'command' to run and a 'parser' for its output.
+# Available parsers: ruff, ruff_format, mypy, pyrefly, pytest, raw
+
+# Note: the formatter intentionally runs on both `src` and `tests` even though
+# `[files] exclude` takes tests out of the file-review scope. We want formatting
+# applied uniformly across the repo (runtools.sh has the same intent), while
+# per-file AI review is limited to `src`.
+[tools.py.formatter]
+command = "uv run ruff format src tests"
+parser = "ruff_format"
+
+[tools.py.linter]
+command = "uv run ruff check --output-format json src"
+parser = "ruff"
+
+[tools.py.type_checker]
+command = "uv run pyrefly check --output-format json src"
+parser = "pyrefly"
+
+# Alternative: mypy
+# command = "uv run mypy --output json src/"
+# parser = "mypy"
+
+[tools.py.test]
+command = "uv run pytest --tb=short"
+parser = "pytest"
+
+# Agent configuration for AI-powered review.
+# All fields below are optional; defaults shown.
+[agent]
+review_model  = "claude-opus-4-7"
+resolve_model = "claude-opus-4-7"
+thinking      = "adaptive"    # "adaptive" or "disabled"
+effort        = "xhigh"       # low | medium | high | xhigh | max
+# The 1M-token context window is built in to Opus 4.7 and Sonnet 4.6.

@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+
+# Get the directory of this script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+# Run the reviewer script using uv in its own environment
+# The python script defaults --project-path to CWD, which is what we want.
+uv run --project "$SCRIPT_DIR" sqa-agent "$@"
