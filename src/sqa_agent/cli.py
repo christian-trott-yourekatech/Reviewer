@@ -84,6 +84,20 @@ EXIT_KEYBOARD_INTERRUPT = 130  # POSIX 128 + SIGINT
 # (leaks install path) or world-executable.
 _LAUNCHER_SCRIPT_MODE = 0o700
 
+# Public install URL used by ``./review --upgrade``. Single source of truth
+# so the launcher template, install.sh, and README upgrade docs all agree.
+_PUBLIC_REPO_INSTALL_URL = (
+    "git+https://github.com/christian-trott-yourekatech/Reviewer.git"
+)
+
+# Bash snippet shared by both launcher templates: when the first arg is
+# ``--upgrade``, reinstall the latest published version from GitHub and
+# exit before delegating to ``sqa-agent`` (which has no such subcommand).
+_LAUNCHER_UPGRADE_SNIPPET = f"""\
+if [ "${{1:-}}" = "--upgrade" ]; then
+    exec uv tool install --reinstall --with "sqa-agent[all]" {_PUBLIC_REPO_INSTALL_URL}
+fi"""
+
 # Human-friendly labels for tool categories (keyed by the raw names used
 # by ``TOOL_CATEGORIES``/``FileTypeTools``). Single source of truth so every
 # UI surface — menus, health-check output, logs — spells them the same way.
@@ -279,10 +293,18 @@ def cmd_init() -> int:
             # generated launcher is invoked.
             quoted_dir = shlex.quote(str(sqa_project_dir))
             review_script.write_text(
-                f'#!/bin/bash\nuv run --project {quoted_dir} sqa-agent "$@"\n'
+                "#!/bin/bash\n"
+                "set -euo pipefail\n"
+                f"{_LAUNCHER_UPGRADE_SNIPPET}\n"
+                f'uv run --project {quoted_dir} sqa-agent "$@"\n'
             )
         else:
-            review_script.write_text('#!/bin/bash\nsqa-agent "$@"\n')
+            review_script.write_text(
+                "#!/bin/bash\n"
+                "set -euo pipefail\n"
+                f"{_LAUNCHER_UPGRADE_SNIPPET}\n"
+                'exec sqa-agent "$@"\n'
+            )
         review_script.chmod(_LAUNCHER_SCRIPT_MODE)
         logger.info("Created ./review launcher script")
     else:

@@ -1,9 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
-# Get the directory of this script
+# Get the directory of this script.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-# Run the reviewer script using uv in its own environment
+# `./review --upgrade` reinstalls the latest published version from GitHub.
+# Note: this installs the public release into `uv tool` storage; it does not
+# modify this source checkout. For source-checkout development, use
+# `git pull && uv sync` in this directory instead.
+if [ "${1:-}" = "--upgrade" ]; then
+    exec uv tool install --reinstall \
+        --with "sqa-agent[all]" \
+        git+https://github.com/christian-trott-yourekatech/Reviewer.git
+fi
+
+# Run the reviewer using uv in its own environment.
 # The python script defaults --project-path to CWD, which is what we want.
 uv run --project "$SCRIPT_DIR" sqa-agent "$@"

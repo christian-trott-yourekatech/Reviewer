@@ -2,32 +2,19 @@
 
 An AI-powered software quality assurance agent built on the Claude Agent SDK. SQA Agent performs structured, automated code quality analysis on software projects.
 
-## Top-level `review` script
-
-The `review` file at the repository root is a shell convenience wrapper. It runs `uv run --project <script-dir> sqa-agent "$@"`, so you can invoke the agent from any directory without needing to remember the full `uv run` invocation.
-
-## Git Ignore
-
-When using the reviewer in your project, it will create a ./.sqa-agent directory for review-related artifacts. We recommend adding the following to your .gitignore file:
-
-```
-.sqa-agent/debug.log
-.sqa-agent/result*.json
-```
-
-
 ## Project Structure
 
 ```
 src/sqa_agent/
-  agent.py         # Claude Agent SDK client wrapper
-  agent_common.py  # Shared agent helpers (session setup, tool config)
+  agent.py         # Re-export surface for the agent subsystem
+  agent_common.py  # Shared agent helpers (session setup, tool config, prompts)
   agent_resolve.py # Auto-resolve and interactive-resolve logic
   agent_review.py  # File review and general review orchestration
   cli.py           # CLI entry point and interactive menu
-  config.py        # Configuration loading
+  config.py        # Configuration loading and validation
   file_status.py   # Git hash tracking and change detection
   findings.py      # Finding data model and result file I/O
+  git_ops.py       # Git helpers for the interactive-resolve UI
   prompts.py       # Markdown prompt parsing
   tools.py         # Tool execution and output parsing
   ui.py            # Rich-based UI (prompts, menus, status display)
@@ -49,6 +36,43 @@ The agent review phase uses the Claude Agent SDK, which requires the Claude Code
 2. **API key**: Set the `ANTHROPIC_API_KEY` environment variable with your Anthropic API key.
 
 Deterministic tools (formatter, linter, type checker, tests) do not require authentication and will run regardless.
+
+## Installation
+
+Install with `uv tool install` directly:
+
+```bash
+uv tool install --with "sqa-agent[all]" git+https://github.com/christian-trott-yourekatech/Reviewer.git
+```
+
+Or use the bundled install script (a thin wrapper around the same command):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/christian-trott-yourekatech/Reviewer/main/install.sh | bash
+```
+
+The `[all]` extra pulls in optional dependencies the agent may invoke during review (`ruff`, `mypy`, `pyrefly`, `pytest`). Omit it to install only the core package.
+
+### Upgrading
+
+Once a project has been initialized (see [Initialize a project](#initialize-a-project) below), the generated `./review` launcher accepts an `--upgrade` flag that reinstalls the latest published version:
+
+```bash
+./review --upgrade
+```
+
+You can also re-run `install.sh` or the `uv tool install` command above (both use `--reinstall`).
+
+### Per-project artifacts
+
+`sqa-agent init` creates a `.sqa-agent/` directory in your project for review state and logs. We recommend adding the following to your `.gitignore`:
+
+```
+.sqa-agent/logs/
+.sqa-agent/result*.json
+```
+
+The result files contain finding messages that may quote source code; the logs are timestamped DEBUG-level traces useful for local debugging but not worth committing.
 
 ## Usage
 
@@ -109,6 +133,28 @@ review_model  = "claude-opus-4-7"
 resolve_model = "claude-opus-4-7"
 thinking      = "adaptive"    # "adaptive" or "disabled"
 effort        = "xhigh"       # low | medium | high | xhigh | max
+
+# Which deterministic tools to re-run as verification after the agent
+# resolves a finding. Each flag defaults to false (no verification).
+[resolve.auto]
+formatter    = true
+linter       = true
+type_checker = true
+test         = false
+
+[resolve.interactive]
+formatter    = true
+linter       = false
+type_checker = false
+test         = false
+
+# Which tools the interactive menu should health-check on every refresh.
+# Defaults to false; enable per category to surface failures up-front.
+[menu]
+formatter    = false
+linter       = true
+type_checker = true
+test         = false
 ```
 
 The 1M-token context window is built in to Opus 4.7 and Sonnet 4.6, so no
@@ -127,9 +173,11 @@ Running `uv run review` with no subcommand opens an interactive menu. The availa
 | `init` | Initialize a new `.sqa-agent/` directory |
 | `review` | Run deterministic tools and AI-powered code analysis |
 | `triage` | Walk through findings and assign triage decisions |
-| `reset` | Mark all in-scope files as reviewed at their current state |
 | `auto-resolve` | Autonomously resolve findings triaged as "auto" |
 | `interactive-resolve` | Interactively resolve findings triaged as "interactive" |
+| `check` | Run deterministic code-quality tools (with a sub-menu for selection) |
+| `commit` | Stage tracked-file changes (`git add -u`) and commit with a prompted message |
+| `reset` | Mark all in-scope files as reviewed at their current state |
 
 ### Workflow
 
@@ -180,8 +228,16 @@ uv run review auto-resolve
 uv run review interactive-resolve
 ```
 
-- **Auto-resolve** feeds each "auto"-triaged finding (along with any resolve hint) to the agent, which edits the codebase autonomously. Resolved changes are committed automatically.
-- **Interactive-resolve** opens a multi-turn conversation with the agent for each "interactive"-triaged finding. You can guide the agent, then mark the finding as `/resolve`d, `/skip` it, or `/quit`.
+- **Auto-resolve** feeds each "auto"-triaged finding (along with any resolve hint) to the agent, which edits the codebase autonomously. After the pass, tracked-file changes are staged with `git add -u` and committed automatically.
+- **Interactive-resolve** opens a multi-turn conversation with the agent for each "interactive"-triaged finding. Inside a session you can:
+  - `/resolve` — mark the finding resolved and move to the next.
+  - `/skip` — leave it open and move on.
+  - `/quit` — stop the resolve pass.
+  - `/diff` — show the current unstaged diff.
+  - `/commit` — stage **all** changes (`git add .`, including untracked files) and commit with a prompted message. Confirmation is required so a stray secret file can be aborted before it lands.
+  - `/help` — show this list.
+
+  Note that the in-session `/commit` and the post-pass automatic commit use deliberately different staging scopes (`git add .` vs `git add -u`). Interactive sessions routinely produce new files (a helper module, a new test) that the broader scope captures; the post-pass commit is more conservative to avoid sweeping in untracked artefacts.
 
 ### Customize prompts
 
@@ -198,15 +254,6 @@ You can add, remove, or edit sections to tailor the review to your project's nee
 > per-project editable copy that the agent actually reads at runtime. In this
 > repository specifically, `.sqa-agent/prompts/` is also the customized copy
 > used to self-review the tool, so it may diverge from the bundled defaults.
-
-## Known Limitations
-
-- **Glob/Grep broken in bundled CLI**: The Claude Agent SDK (v0.1.35) ships a
-  bundled Claude Code CLI (v2.1.39) in which the Glob and Grep tools always
-  return "No files found." As a workaround, we provide the full `git ls-files`
-  listing in the setup prompt so the agent can Read files by explicit path. When
-  a newer SDK ships with a fixed bundled CLI, re-enable Glob/Grep testing and
-  consider removing the file-listing workaround if the tools work reliably.
 
 ## Development
 
@@ -233,3 +280,9 @@ uv run ruff check src tests        # lint
 uv run pyrefly check src tests     # type-check
 uv run pytest tests/ -v            # tests
 ```
+
+`./runtools.sh` runs each tool sequentially and prints a per-tool pass/fail banner at the end so you can see at a glance which steps need attention.
+
+## License
+
+SQA Agent is released under the MIT License — see [LICENSE](./LICENSE) for the full text.
