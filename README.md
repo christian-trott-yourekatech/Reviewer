@@ -24,7 +24,10 @@ src/sqa_agent/
 ## Prerequisites
 
 - Python 3.12+
-- [uv](https://docs.astral.sh/uv/) for dependency management
+- [uv](https://docs.astral.sh/uv/) for dependency management — install with:
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
 - A git repository (for file change detection)
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated (for agent review)
 
